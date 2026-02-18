@@ -12,10 +12,20 @@ const deviceDetail = document.getElementById('deviceDetail');
 const refreshBtn = document.getElementById('refreshBtn');
 const backBtn = document.getElementById('backBtn');
 const editNameBtn = document.getElementById('editNameBtn');
+const exportPdfBtn = document.getElementById('exportPdfBtn');
 const editModal = document.getElementById('editModal');
+const exportModal = document.getElementById('exportModal');
+const notificationModal = document.getElementById('notificationModal');
 const cancelBtn = document.getElementById('cancelBtn');
-const saveBtn = document.getElementById('saveBtn');
+const saveNameBtn = document.getElementById('saveNameBtn');
 const newNameInput = document.getElementById('newNameInput');
+const notificationBtn = document.getElementById('notificationBtn');
+const notificationToggle = document.getElementById('notificationToggle');
+const closeNotificationBtn = document.getElementById('closeNotificationBtn');
+const cancelExportBtn = document.getElementById('cancelExportBtn');
+const generatePdfBtn = document.getElementById('generatePdfBtn');
+const monthSelect = document.getElementById('monthSelect');
+const yearSelect = document.getElementById('yearSelect');
 const installPrompt = document.getElementById('installPrompt');
 const installBtn = document.getElementById('installBtn');
 const dismissBtn = document.getElementById('dismissBtn');
@@ -25,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initApp();
   registerServiceWorker();
   setupInstallPrompt();
+  initNotifications();
+  populateYearSelect();
 });
 
 async function initApp() {
@@ -38,8 +50,17 @@ async function initApp() {
   
   backBtn.addEventListener('click', showDevicesList);
   editNameBtn.addEventListener('click', showEditModal);
+  exportPdfBtn.addEventListener('click', showExportModal);
+  notificationBtn.addEventListener('click', showNotificationModal);
+  
   cancelBtn.addEventListener('click', hideEditModal);
-  saveBtn.addEventListener('click', saveDeviceName);
+  saveNameBtn.addEventListener('click', saveDeviceName);
+  
+  cancelExportBtn.addEventListener('click', hideExportModal);
+  generatePdfBtn.addEventListener('click', generatePDF);
+  
+  closeNotificationBtn.addEventListener('click', hideNotificationModal);
+  notificationToggle.addEventListener('change', toggleNotifications);
   
   // Time range buttons
   document.querySelectorAll('.range-btn').forEach(btn => {
@@ -79,6 +100,41 @@ function setupInstallPrompt() {
   dismissBtn.addEventListener('click', () => {
     installPrompt.classList.add('hidden');
   });
+}
+
+async function initNotifications() {
+  const initialized = await notificationManager.init();
+  if (initialized) {
+    notificationManager.setupForegroundNotifications();
+  }
+}
+
+async function toggleNotifications(e) {
+  if (e.target.checked) {
+    const success = await notificationManager.enable();
+    if (!success) {
+      e.target.checked = false;
+    }
+  } else {
+    await notificationManager.disable();
+  }
+}
+
+function populateYearSelect() {
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  
+  // สร้างตัวเลือกปี (ปีปัจจุบัน และ 2 ปีย้อนหลัง)
+  for (let year = currentYear; year >= currentYear - 2; year--) {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year + 543; // แสดงเป็น พ.ศ.
+    yearSelect.appendChild(option);
+  }
+  
+  // ตั้งค่าเดือนและปีปัจจุบัน
+  monthSelect.value = currentMonth;
+  yearSelect.value = currentYear;
 }
 
 async function loadDevices() {
@@ -260,6 +316,22 @@ function hideEditModal() {
   editModal.classList.add('hidden');
 }
 
+function showExportModal() {
+  exportModal.classList.remove('hidden');
+}
+
+function hideExportModal() {
+  exportModal.classList.add('hidden');
+}
+
+function showNotificationModal() {
+  notificationModal.classList.remove('hidden');
+}
+
+function hideNotificationModal() {
+  notificationModal.classList.add('hidden');
+}
+
 async function saveDeviceName() {
   const newName = newNameInput.value.trim();
   
@@ -285,6 +357,15 @@ async function saveDeviceName() {
   } catch (error) {
     showError('ไม่สามารถบันทึกชื่อได้: ' + error.message);
   }
+}
+
+async function generatePDF() {
+  const year = parseInt(yearSelect.value);
+  const month = parseInt(monthSelect.value);
+  
+  hideExportModal();
+  
+  await pdfExporter.generateMonthlyPDF(currentDevice, year, month);
 }
 
 function showLoading() {
