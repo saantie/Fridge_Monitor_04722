@@ -14,12 +14,26 @@
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- jsPDF + html2canvas สำหรับ Export PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Firebase SDK สำหรับ Push Notifications -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <h1>🌡️ Fridge Monitor</h1>
-        <button id="refreshBtn" class="refresh-btn">↻</button>
+        <div class="header-buttons">
+            <button id="notificationBtn" class="icon-btn" title="การแจ้งเตือน">
+                <span class="notification-icon">🔔</span>
+                <span id="notificationBadge" class="badge hidden">!</span>
+            </button>
+            <button id="refreshBtn" class="icon-btn">↻</button>
+        </div>
     </header>
 
     <!-- Loading -->
@@ -46,7 +60,10 @@
             
             <div class="device-header">
                 <h2 id="deviceTitle"></h2>
-                <button id="editNameBtn" class="edit-btn">✏️ แก้ไข</button>
+                <div class="header-actions">
+                    <button id="editNameBtn" class="btn-icon">✏️</button>
+                    <button id="exportPdfBtn" class="btn-primary">📄 Export PDF</button>
+                </div>
             </div>
 
             <div class="current-temp">
@@ -70,7 +87,7 @@
                 <button class="range-btn" data-hours="168">7 วัน</button>
             </div>
 
-            <div class="chart-container">
+            <div class="chart-container" id="chartContainer">
                 <canvas id="tempChart"></canvas>
             </div>
 
@@ -87,7 +104,63 @@
             <input type="text" id="newNameInput" placeholder="ชื่อเครื่องใหม่">
             <div class="modal-buttons">
                 <button id="cancelBtn" class="btn-secondary">ยกเลิก</button>
-                <button id="saveBtn" class="btn-primary">บันทึก</button>
+                <button id="saveNameBtn" class="btn-primary">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export PDF Modal -->
+    <div id="exportModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>📄 Export รายงานรายเดือน</h3>
+            <div class="export-form">
+                <label>เลือกเดือน:</label>
+                <select id="monthSelect">
+                    <option value="1">มกราคม</option>
+                    <option value="2">กุมภาพันธ์</option>
+                    <option value="3">มีนาคม</option>
+                    <option value="4">เมษายน</option>
+                    <option value="5">พฤษภาคม</option>
+                    <option value="6">มิถุนายน</option>
+                    <option value="7">กรกฎาคม</option>
+                    <option value="8">สิงหาคม</option>
+                    <option value="9">กันยายน</option>
+                    <option value="10">ตุลาคม</option>
+                    <option value="11">พฤศจิกายน</option>
+                    <option value="12">ธันวาคม</option>
+                </select>
+                
+                <label>เลือกปี:</label>
+                <select id="yearSelect"></select>
+            </div>
+            <div class="modal-buttons">
+                <button id="cancelExportBtn" class="btn-secondary">ยกเลิก</button>
+                <button id="generatePdfBtn" class="btn-primary">สร้าง PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Settings Modal -->
+    <div id="notificationModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🔔 การแจ้งเตือน</h3>
+            <div class="notification-settings">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Push Notifications</h4>
+                        <p>รับการแจ้งเตือนแม้ไม่เปิดแอพ</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="notificationToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="notificationStatus" class="notification-status hidden">
+                    <p id="notificationStatusText"></p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="closeNotificationBtn" class="btn-primary">ปิด</button>
             </div>
         </div>
     </div>
@@ -95,12 +168,20 @@
     <!-- Install Prompt -->
     <div id="installPrompt" class="install-prompt hidden">
         <p>📱 ติดตั้ง Fridge Monitor บนโทรศัพท์</p>
-        <button id="installBtn" class="btn-primary">ติดตั้ง</button>
-        <button id="dismissBtn" class="btn-secondary">ไว้ทีหลัง</button>
+        <div class="install-buttons">
+            <button id="installBtn" class="btn-primary">ติดตั้ง</button>
+            <button id="dismissBtn" class="btn-secondary">ไว้ทีหลัง</button>
+        </div>
     </div>
 
+    <!-- PDF Preview (Hidden) -->
+    <div id="pdfPreview" class="pdf-preview hidden"></div>
+
+    <script src="js/firebase-config.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/notifications.js"></script>
     <script src="js/charts.js"></script>
+    <script src="js/pdf-export.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
