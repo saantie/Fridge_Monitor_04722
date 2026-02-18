@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="description" content="ระบบติดตามอุณหภูมิตู้เย็น">
+    <title>Fridge Monitor</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>🌡️ Fridge Monitor</h1>
+        <button id="refreshBtn" class="refresh-btn">↻</button>
+    </header>
+
+    <!-- Loading -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>กำลังโหลดข้อมูล...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMsg" class="error-msg hidden">
+        <p id="errorText"></p>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Devices List -->
+        <section id="devicesList" class="devices-section">
+            <!-- Devices will be inserted here -->
+        </section>
+
+        <!-- Device Detail -->
+        <section id="deviceDetail" class="device-detail hidden">
+            <button id="backBtn" class="back-btn">← กลับ</button>
+            
+            <div class="device-header">
+                <h2 id="deviceTitle"></h2>
+                <button id="editNameBtn" class="edit-btn">✏️ แก้ไข</button>
+            </div>
+
+            <div class="current-temp">
+                <div class="temp-card chiller">
+                    <div class="temp-label">Chiller</div>
+                    <div class="temp-value" id="chillerTemp">--</div>
+                    <div class="temp-unit">°C</div>
+                    <div class="temp-status" id="chillerStatus"></div>
+                </div>
+                <div class="temp-card freezer">
+                    <div class="temp-label">Freezer</div>
+                    <div class="temp-value" id="freezerTemp">--</div>
+                    <div class="temp-unit">°C</div>
+                    <div class="temp-status" id="freezerStatus"></div>
+                </div>
+            </div>
+
+            <div class="time-range">
+                <button class="range-btn active" data-hours="24">24 ชม.</button>
+                <button class="range-btn" data-hours="48">48 ชม.</button>
+                <button class="range-btn" data-hours="168">7 วัน</button>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="tempChart"></canvas>
+            </div>
+
+            <div class="last-update">
+                อัพเดทล่าสุด: <span id="lastUpdate">--</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- Edit Name Modal -->
+    <div id="editModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>แก้ไขชื่อเครื่อง</h3>
+            <input type="text" id="newNameInput" placeholder="ชื่อเครื่องใหม่">
+            <div class="modal-buttons">
+                <button id="cancelBtn" class="btn-secondary">ยกเลิก</button>
+                <button id="saveBtn" class="btn-primary">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Install Prompt -->
+    <div id="installPrompt" class="install-prompt hidden">
+        <p>📱 ติดตั้ง Fridge Monitor บนโทรศัพท์</p>
+        <button id="installBtn" class="btn-primary">ติดตั้ง</button>
+        <button id="dismissBtn" class="btn-secondary">ไว้ทีหลัง</button>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
