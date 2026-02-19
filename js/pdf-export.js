@@ -378,3 +378,25 @@ class PDFExporter {
 }
 
 const pdfExporter = new PDFExporter();
+async createThaiTextImage(text, fontSize = 24) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  ctx.font = `${fontSize}px 'Sarabun', 'Noto Sans Thai', sans-serif`;
+  const metrics = ctx.measureText(text);
+  
+  canvas.width = metrics.width + 20;
+  canvas.height = fontSize + 10;
+  
+  ctx.font = `${fontSize}px 'Sarabun', 'Noto Sans Thai', sans-serif`;
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, 10, 5);
+  
+  return canvas.toDataURL('image/png');
+}
+
+// ใช้งาน:
+const deviceImg = await this.createThaiTextImage(device.device_name, 16);
+doc.addImage(deviceImg, 'PNG', 60, yPos, 90, 8);
