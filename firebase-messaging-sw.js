@@ -12,49 +12,55 @@ const firebaseConfig = {
   appId: "1:623427160222:web:780e2011212969f6b5d38f"
 };
 
-// Initialize Firebase
+// Initialize Firebase in the service worker
 firebase.initializeApp(firebaseConfig);
 
-// Get messaging instance
+// Retrieve an instance of Firebase Messaging
 const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('Background message received:', payload);
+  console.log('[firebase-messaging-sw.js] Received background message:', payload);
   
-  const { title, body } = payload.notification;
-  
-  // ใช้ relative path
+  const notificationTitle = payload.notification.title || 'Fridge Monitor Alert';
   const notificationOptions = {
-    body: body,
+    body: payload.notification.body || 'Temperature alert',
     icon: './icons/icon-192.png',
     badge: './icons/icon-192.png',
     tag: 'temperature-alert',
     requireInteraction: payload.data?.severity === 'critical',
     vibrate: payload.data?.severity === 'critical' ? [200, 100, 200, 100, 200] : [200, 100, 200],
-    data: payload.data
+    data: {
+      url: self.location.origin + '/',
+      ...payload.data
+    }
   };
-  
-  self.registration.showNotification(title, notificationOptions);
+
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
+  console.log('[firebase-messaging-sw.js] Notification click received.');
   
+  event.notification.close();
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then(clientList => {
-        // ถ้ามี window เปิดอยู่แล้ว ให้ focus
-        for (let client of clientList) {
-          if (client.url.includes('fridge-monitor-pwa') && 'focus' in client) {
+      .then((clientList) => {
+        // Check if there's already a window/tab open
+        for (let i = 0; i < clientList.length; i++) {
+          const client = clientList[i];
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
             return client.focus();
           }
         }
-        // ถ้าไม่มี ให้เปิดใหม่
+        // If not, open a new window
         if (clients.openWindow) {
           return clients.openWindow('./');
         }
       })
   );
 });
+
+console.log('[firebase-messaging-sw.js] Service worker loaded');
