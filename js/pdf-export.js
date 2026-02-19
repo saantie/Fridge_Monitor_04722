@@ -8,7 +8,6 @@ class PDFExporter {
     try {
       showLoading();
       
-      // ดึงข้อมูลรายเดือน
       const response = await API.getMonthlyData(device.device_name, year, month);
       
       if (response.error) {
@@ -16,13 +15,13 @@ class PDFExporter {
       }
 
       this.monthlyData = response;
+      this.currentDevice = device;
       
-      // สร้าง PDF
       await this.createPDF();
       
       hideLoading();
     } catch (error) {
-      showError('ไม่สามารถสร้าง PDF ได้: ' + error.message);
+      showError('Cannot generate PDF: ' + error.message);
     }
   }
 
@@ -34,40 +33,51 @@ class PDFExporter {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     
-    // ตั้งค่า font (ใช้ default font ที่รองรับภาษาไทย)
-    doc.setFont('helvetica');
-    
-    // === หน้าปก ===
+    // === PAGE 1: COVER & SUMMARY ===
     let yPos = 20;
     
-    // Logo/Icon
+    // Logo
     doc.setFontSize(40);
     doc.text('🌡️', pageWidth / 2, yPos, { align: 'center' });
     
     yPos += 20;
     
-    // ชื่อรายงาน
-    doc.setFontSize(20);
+    // Title
+    doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
     doc.text('Fridge Temperature Report', pageWidth / 2, yPos, { align: 'center' });
     
-    yPos += 10;
-    doc.setFontSize(16);
-    doc.text(data.month_name, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 12;
+    
+    // Month/Year
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = monthNames[data.month - 1] + ' ' + data.year;
+    
+    doc.setFontSize(18);
+    doc.text(monthName, pageWidth / 2, yPos, { align: 'center' });
     
     yPos += 15;
     
-    // ชื่อเครื่อง
+    // Device Name (English only)
     doc.setFontSize(14);
     doc.setFont('helvetica', 'normal');
-    doc.text('Device: ' + data.device_name, pageWidth / 2, yPos, { align: 'center' });
+    const deviceNameEn = this.translateDeviceName(this.currentDevice.device_name);
+    doc.text('Device: ' + deviceNameEn, pageWidth / 2, yPos, { align: 'center' });
     
-    yPos += 30;
+    yPos += 25;
     
-    // === สรุปข้อมูล ===
+    // Box for Summary
+    doc.setDrawColor(102, 126, 234);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(20, yPos, pageWidth - 40, 90, 3, 3);
+    
+    yPos += 10;
+    
+    // Summary Title
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Monthly Summary', 20, yPos);
+    doc.text('Monthly Summary', 25, yPos);
     
     yPos += 10;
     doc.setFontSize(12);
@@ -75,6 +85,7 @@ class PDFExporter {
     
     const summary = data.summary;
     
+    // Summary data
     const summaryLines = [
       `Total Records: ${summary.total_records}`,
       `Alert Count: ${summary.alert_count}`,
@@ -91,33 +102,44 @@ class PDFExporter {
     ];
     
     summaryLines.forEach(line => {
-      doc.text(line, 25, yPos);
+      doc.text(line, 30, yPos);
       yPos += 6;
     });
     
-    // === กราฟ ===
-    yPos += 10;
-    
-    if (yPos > pageHeight - 100) {
-      doc.addPage();
-      yPos = 20;
+    // Add alert status indicator
+    yPos += 15;
+    if (summary.alert_count > 0) {
+      doc.setTextColor(245, 101, 101);
+      doc.setFontSize(11);
+      const alertPercent = ((summary.alert_count / summary.total_records) * 100).toFixed(1);
+      doc.text(`⚠ ${alertPercent}% of records had temperature alerts`, 25, yPos);
+      doc.setTextColor(0, 0, 0);
     }
+    
+    // === PAGE 2: CHART ===
+    doc.addPage();
+    yPos = 20;
     
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Temperature Chart', 20, yPos);
+    doc.text('Temperature Trend', 20, yPos);
     
     yPos += 10;
     
-    // สร้างกราฟชั่วคราวสำหรับ export
-    const chartCanvas = await this.createChartForPDF(data.data);
-    const chartImage = chartCanvas.toDataURL('image/png');
+    // Create chart
+    try {
+      const chartCanvas = await this.createChartForPDF(data.data);
+      const chartImage = chartCanvas.toDataURL('image/png');
+      doc.addImage(chartImage, 'PNG', 20, yPos, pageWidth - 40, 100);
+      yPos += 110;
+    } catch (error) {
+      console.error('Chart error:', error);
+      doc.setFontSize(12);
+      doc.text('Chart generation failed', 20, yPos);
+      yPos += 10;
+    }
     
-    doc.addImage(chartImage, 'PNG', 20, yPos, pageWidth - 40, 80);
-    
-    yPos += 90;
-    
-    // === ตารางข้อมูล ===
+    // === PAGE 3: DATA TABLE ===
     if (yPos > pageHeight - 60) {
       doc.addPage();
       yPos = 20;
@@ -125,94 +147,143 @@ class PDFExporter {
     
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Data Table (Last 50 records)', 20, yPos);
+    doc.text('Temperature Records', 20, yPos);
     
-    yPos += 10;
-    
-    // Header ตาราง
+    yPos += 8;
     doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('(Showing last 50 records)', 20, yPos);
+    
+    yPos += 8;
+    
+    // Table header
     doc.setFont('helvetica', 'bold');
     doc.text('Date/Time', 20, yPos);
-    doc.text('Chiller (°C)', 80, yPos);
-    doc.text('Freezer (°C)', 130, yPos);
-    doc.text('Status', 180, yPos);
+    doc.text('Chiller (°C)', 70, yPos);
+    doc.text('Freezer (°C)', 110, yPos);
+    doc.text('Status', 150, yPos);
     
-    yPos += 5;
+    yPos += 2;
+    doc.setLineWidth(0.3);
     doc.line(20, yPos, pageWidth - 20, yPos);
     yPos += 5;
     
-    // ข้อมูล (แสดง 50 แถวล่าสุด)
+    // Table data (last 50 records)
     doc.setFont('helvetica', 'normal');
     const recentData = data.data.slice(-50);
     
-    recentData.forEach((record, index) => {
+    recentData.forEach((record) => {
       if (yPos > pageHeight - 20) {
         doc.addPage();
         yPos = 20;
         
-        // Header ซ้ำ
+        // Repeat header
         doc.setFont('helvetica', 'bold');
         doc.text('Date/Time', 20, yPos);
-        doc.text('Chiller (°C)', 80, yPos);
-        doc.text('Freezer (°C)', 130, yPos);
-        doc.text('Status', 180, yPos);
-        yPos += 5;
+        doc.text('Chiller (°C)', 70, yPos);
+        doc.text('Freezer (°C)', 110, yPos);
+        doc.text('Status', 150, yPos);
+        yPos += 2;
         doc.line(20, yPos, pageWidth - 20, yPos);
         yPos += 5;
         doc.setFont('helvetica', 'normal');
       }
       
-      const timestamp = record.timestamp.substring(5); // ตัดปีออก
-      const chiller = record.chiller.toFixed(1);
-      const freezer = record.freezer.toFixed(1);
+      const timestamp = record.timestamp.substring(5, 16); // MM-DD HH:MM
+      const chiller = parseFloat(record.chiller).toFixed(1);
+      const freezer = parseFloat(record.freezer).toFixed(1);
       
-      // กำหนดสีตามสถานะ
+      // Check alert status
       let status = 'OK';
+      let isAlert = false;
+      
       if (record.chiller < 2 || record.chiller > 8 || 
           record.freezer < -20 || record.freezer > -10) {
-        doc.setTextColor(220, 53, 69); // สีแดง
         status = 'Alert';
+        isAlert = true;
+        doc.setTextColor(245, 101, 101);
       } else {
-        doc.setTextColor(0, 0, 0); // สีดำ
+        doc.setTextColor(72, 187, 120);
       }
       
       doc.text(timestamp, 20, yPos);
-      doc.text(chiller, 80, yPos);
-      doc.text(freezer, 130, yPos);
-      doc.text(status, 180, yPos);
+      doc.text(chiller, 70, yPos);
+      doc.text(freezer, 110, yPos);
+      doc.text(status, 150, yPos);
       
+      doc.setTextColor(0, 0, 0);
       yPos += 6;
     });
     
-    // === Footer ===
-    const totalPages = doc.internal.pages.length - 1; // ลบหน้าว่าง
+    // === FOOTER ON ALL PAGES ===
+    const totalPages = doc.internal.pages.length - 1;
     doc.setTextColor(128, 128, 128);
     doc.setFontSize(8);
     
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.text(
-        `Generated: ${new Date().toLocaleString('th-TH')} | Page ${i} of ${totalPages}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      );
+      const footerText = `Generated: ${new Date().toLocaleString('en-US', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })} | Page ${i} of ${totalPages}`;
+      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
     }
     
-    // บันทึกไฟล์
-    const filename = `FridgeReport_${data.device_name}_${data.year}-${String(data.month).padStart(2, '0')}.pdf`;
+    // Save PDF
+    const filename = `FridgeReport_${deviceNameEn}_${data.year}-${String(data.month).padStart(2, '0')}.pdf`;
     doc.save(filename);
+    
+    console.log('✅ PDF saved:', filename);
+  }
+
+  // Translate Thai device names to English
+  translateDeviceName(name) {
+    // Remove Thai characters and special chars, keep only alphanumeric
+    let cleanName = name.replace(/[^\x00-\x7F]/g, ''); // Remove non-ASCII
+    
+    // If nothing left, use device ID
+    if (cleanName.trim().length === 0) {
+      cleanName = this.currentDevice.device_id || 'Device';
+    }
+    
+    // Common translations
+    const translations = {
+      'ตู้เย็น': 'Fridge',
+      'ห้องยา': 'Medicine Room',
+      'วัคซีน': 'Vaccine',
+      'ชั้น': 'Floor',
+    };
+    
+    let result = cleanName.trim();
+    
+    // Try to add context from location if available
+    if (this.currentDevice.location && this.currentDevice.location !== '-') {
+      const locationEn = this.currentDevice.location.replace(/[^\x00-\x7F]/g, '').trim();
+      if (locationEn) {
+        result += ' ' + locationEn;
+      }
+    }
+    
+    // If still empty, use device ID
+    if (!result || result.length === 0) {
+      result = this.currentDevice.device_id || 'Fridge Monitor';
+    }
+    
+    return result;
   }
 
   async createChartForPDF(data) {
-    // สร้าง canvas ชั่วคราว
     const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 400;
+    canvas.width = 1000;
+    canvas.height = 500;
     
     const ctx = canvas.getContext('2d');
     
-    // เตรียมข้อมูล - สุ่มตัวอย่าง 100 จุดถ้ามีข้อมูลเยอะเกินไป
+    // Sample data if too many points
     let sampledData = data;
     if (data.length > 100) {
       const step = Math.floor(data.length / 100);
@@ -221,11 +292,15 @@ class PDFExporter {
     
     const timestamps = sampledData.map(d => {
       const date = new Date(d.timestamp);
-      return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit'
+      });
     });
 
-    const chillerData = sampledData.map(d => d.chiller);
-    const freezerData = sampledData.map(d => d.freezer);
+    const chillerData = sampledData.map(d => parseFloat(d.chiller));
+    const freezerData = sampledData.map(d => parseFloat(d.freezer));
 
     new Chart(ctx, {
       type: 'line',
@@ -235,18 +310,20 @@ class PDFExporter {
           {
             label: 'Chiller (°C)',
             data: chillerData,
-            borderColor: '#2196F3',
-            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            borderWidth: 2
           },
           {
             label: 'Freezer (°C)',
             data: freezerData,
-            borderColor: '#00BCD4',
-            backgroundColor: 'rgba(0, 188, 212, 0.1)',
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            borderWidth: 2
           }
         ]
       },
@@ -256,7 +333,15 @@ class PDFExporter {
         plugins: {
           legend: {
             display: true,
-            position: 'top'
+            position: 'top',
+            labels: {
+              font: {
+                size: 14
+              }
+            }
+          },
+          title: {
+            display: false
           }
         },
         scales: {
@@ -264,7 +349,24 @@ class PDFExporter {
             beginAtZero: false,
             title: {
               display: true,
-              text: 'Temperature (°C)'
+              text: 'Temperature (°C)',
+              font: {
+                size: 14
+              }
+            },
+            ticks: {
+              font: {
+                size: 12
+              }
+            }
+          },
+          x: {
+            ticks: {
+              maxRotation: 45,
+              minRotation: 45,
+              font: {
+                size: 10
+              }
             }
           }
         }
@@ -275,5 +377,4 @@ class PDFExporter {
   }
 }
 
-// สร้าง instance
 const pdfExporter = new PDFExporter();
