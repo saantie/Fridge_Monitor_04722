@@ -683,3 +683,15 @@ function openAndroidSettings() {
     );
   }
 }
+
+// ========== DEVELOPER HELPERS ==========
+window.resetOnboarding = function() {
+  onboardingManager.reset();
+  localStorage.clear();
+  location.reload();
+  console.log('🔄 Onboarding reset - page reloading...');
+};
+
+console.log('💡 Developer tips:');
+console.log('  - Type resetOnboarding() to reset onboarding');
+console.log('  - Type localStorage.clear() to clear all data');
