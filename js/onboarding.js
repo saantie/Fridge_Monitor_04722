@@ -225,62 +225,108 @@ class OnboardingManager {
     `;
   }
 
-  getResetInstructionsHTML() {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      return `
-        <div class="permission-blocked">
-          <div class="blocked-icon">🚫</div>
-          <strong>Notifications are currently blocked</strong>
-          <p>You need to reset permissions first:</p>
-          
-          <div class="reset-steps">
-            <h4>📱 On Android:</h4>
-            <ol>
-              <li>Tap <strong>⋮</strong> (3 dots) at top right</li>
-              <li>Tap <strong>Settings</strong></li>
-              <li>Tap <strong>Site settings</strong></li>
-              <li>Tap <strong>Notifications</strong></li>
-              <li>Find <strong>saantie.github.io</strong></li>
-              <li>Change <strong>Blocked</strong> to <strong>Allow</strong></li>
-              <li>Come back here and tap "I have reset permissions"</li>
-            </ol>
-          </div>
-          
-          <div class="help-video">
-            <small>💡 Tip: You may need to close and reopen the app after changing settings</small>
-          </div>
+getResetInstructionsHTML() {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    return `
+      <div class="permission-blocked">
+        <div class="blocked-icon">🚫</div>
+        <strong>Notifications are currently blocked</strong>
+        <p>Choose one of these methods to enable:</p>
+        
+        <!-- Method 1: Uninstall & Reinstall -->
+        <div class="reset-method">
+          <h4>✨ Method 1: Reinstall App (Easiest)</h4>
+          <ol>
+            <li><strong>Long press</strong> the app icon on home screen</li>
+            <li>Tap <strong>Uninstall</strong> or <strong>Remove</strong></li>
+            <li>Open Chrome and go to:<br>
+                <code>https://saantie.github.io/Fridge_Monitor_04722/</code></li>
+            <li>Menu <strong>⋮</strong> → <strong>Add to Home screen</strong></li>
+            <li>Open the new app → Enable notifications</li>
+          </ol>
         </div>
-      `;
-    } else {
-      return `
-        <div class="permission-blocked">
-          <div class="blocked-icon">🚫</div>
-          <strong>Notifications are currently blocked</strong>
-          <p>You need to reset permissions first:</p>
-          
-          <div class="reset-steps">
-            <h4>🖥️ On Desktop:</h4>
-            <ol>
-              <li>Click the <strong>🔒 lock icon</strong> in the address bar</li>
-              <li>Find <strong>Notifications</strong></li>
-              <li>Change from <strong>Block</strong> to <strong>Ask</strong> or <strong>Allow</strong></li>
-              <li>Reload this page (Ctrl+R or Cmd+R)</li>
-            </ol>
-            
-            <p style="margin-top: 1rem;"><strong>Alternative:</strong></p>
-            <ol>
-              <li>Right-click the address bar</li>
-              <li>Select <strong>Site settings</strong></li>
-              <li>Find <strong>Notifications</strong> → <strong>Allow</strong></li>
-              <li>Reload the page</li>
-            </ol>
-          </div>
+
+        <!-- Method 2: Clear Site Data -->
+        <div class="reset-method">
+          <h4>🗑️ Method 2: Clear Site Data</h4>
+          <ol>
+            <li>Open this app in <strong>Chrome browser</strong> (not as installed app)</li>
+            <li>Tap <strong>⋮</strong> (3 dots) at top right</li>
+            <li>Tap <strong>Settings</strong></li>
+            <li>Tap <strong>Site settings</strong></li>
+            <li>Scroll down → Tap <strong>All sites</strong></li>
+            <li>Find <strong>saantie.github.io</strong></li>
+            <li>Tap <strong>Clear & reset</strong></li>
+            <li>Go back and reload the page</li>
+          </ol>
         </div>
-      `;
-    }
+
+        <!-- Method 3: Manual Add -->
+        <div class="reset-method">
+          <h4>⚙️ Method 3: Add Manually</h4>
+          <ol>
+            <li>Tap <strong>⋮</strong> (3 dots) → <strong>Settings</strong></li>
+            <li>Tap <strong>Site settings</strong></li>
+            <li>Tap <strong>Notifications</strong></li>
+            <li>Under "Allowed", tap <strong>Add site exception</strong></li>
+            <li>Enter: <strong>https://saantie.github.io</strong></li>
+            <li>Tap <strong>Add</strong></li>
+            <li>Come back here and reload</li>
+          </ol>
+        </div>
+        
+        <div class="help-video">
+          <small>💡 After completing any method, come back and tap "I have reset permissions" below</small>
+        </div>
+      </div>
+    `;
+  } else {
+    return `
+      <div class="permission-blocked">
+        <div class="blocked-icon">🚫</div>
+        <strong>Notifications are currently blocked</strong>
+        <p>Choose one of these methods:</p>
+        
+        <!-- Desktop Method 1 -->
+        <div class="reset-method">
+          <h4>🔒 Method 1: From Address Bar (Fastest)</h4>
+          <ol>
+            <li>Click the <strong>🔒 lock icon</strong> or <strong>ℹ️ info icon</strong> in address bar (left side)</li>
+            <li>Find <strong>Notifications</strong></li>
+            <li>Change from <strong>Block</strong> to <strong>Ask</strong> or <strong>Allow</strong></li>
+            <li>Reload this page (F5 or Ctrl+R)</li>
+          </ol>
+        </div>
+
+        <!-- Desktop Method 2 -->
+        <div class="reset-method">
+          <h4>⚙️ Method 2: Chrome Settings</h4>
+          <ol>
+            <li>Copy this: <code>chrome://settings/content/notifications</code></li>
+            <li>Paste in address bar and press Enter</li>
+            <li>Under "Not allowed", find <strong>saantie.github.io</strong></li>
+            <li>Click <strong>⋮</strong> (3 dots) → <strong>Allow</strong></li>
+            <li>Come back here and reload</li>
+          </ol>
+        </div>
+
+        <!-- Desktop Method 3 -->
+        <div class="reset-method">
+          <h4>🗑️ Method 3: Clear & Retry</h4>
+          <ol>
+            <li>Press <strong>F12</strong> to open DevTools</li>
+            <li>Go to <strong>Application</strong> tab</li>
+            <li>Click <strong>Clear storage</strong> (left sidebar)</li>
+            <li>Click <strong>Clear site data</strong> button</li>
+            <li>Close DevTools and reload page</li>
+          </ol>
+        </div>
+      </div>
+    `;
   }
+}
 
   async handleEnableNotifications() {
     const enableBtn = document.getElementById('onboardingEnableNotifications');
