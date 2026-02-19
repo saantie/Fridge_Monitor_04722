@@ -82,6 +82,11 @@ async function initApp() {
   
   // Setup event listeners
   setupEventListeners();
+
+  // Start onboarding if needed (เพิ่มบรรทัดนี้)
+  setTimeout(() => {
+    onboardingManager.start();
+  }, 1000);
   
   console.log('✅ App initialized');
 }
