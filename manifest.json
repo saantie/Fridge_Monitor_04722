@@ -2,10 +2,11 @@
   "name": "Fridge Monitor - ระบบติดตามอุณหภูมิตู้เย็น",
   "short_name": "Fridge Monitor",
   "description": "แอพติดตามอุณหภูมิตู้เย็นสำหรับเก็บวัคซีนและยา",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2196F3",
+  "theme_color": "#667eea",
   "orientation": "portrait",
   "icons": [
     {
