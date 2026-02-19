@@ -14,9 +14,7 @@ firebase.initializeApp(firebaseConfig);
 // Get Firebase Messaging
 const messaging = firebase.messaging();
 
-// VAPID Key (Public Key from Firebase Console → Cloud Messaging → Web Push certificates)
+// VAPID Key
 const VAPID_KEY = "YOUR_VAPID_PUBLIC_KEY";
 
-// Note: Service worker will be automatically registered by Firebase SDK
-// The firebase-messaging-sw.js must be in the root directory
 console.log('✅ Firebase initialized');
