@@ -11,8 +11,22 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Get Firebase Messaging
+// Get Firebase Messaging with custom service worker path
 const messaging = firebase.messaging();
+
+// Register custom service worker for Firebase Messaging
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./firebase-messaging-sw.js', {
+    scope: './firebase-cloud-messaging-push-scope'
+  })
+  .then(registration => {
+    console.log('✅ Firebase messaging service worker registered');
+    messaging.useServiceWorker(registration);
+  })
+  .catch(error => {
+    console.error('❌ Firebase messaging service worker registration failed:', error);
+  });
+}
 
 // VAPID Key (Public Key จาก Web Push certificates)
 const VAPID_KEY = "BHfDSQy07M7YUGNP5SvoDOumd62_1ZFO3nXvkBIEUG9DO495FT7R5YXLId9BDUMhm-Jhv-Iu4boEAmwLux23eWY"; // ← ใส่ VAPID Public Key ของคุณ
