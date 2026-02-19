@@ -2,9 +2,19 @@ class NotificationManager {
   constructor() {
     this.token = null;
     this.permission = Notification.permission;
+    this.isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    this.isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    this.isAndroid = /Android/i.test(navigator.userAgent);
   }
 
   async init() {
+    // Check if iOS
+    if (this.isIOS) {
+      console.warn('⚠️ iOS does not support web push notifications');
+      this.showIOSWarning();
+      return false;
+    }
+
     // Check if browser supports notifications
     if (!('Notification' in window)) {
       console.warn('⚠️ Browser does not support notifications');
@@ -58,67 +68,36 @@ class NotificationManager {
     }
   }
 
-async getToken() {
-  try {
-    console.log('🔑 Getting FCM token...');
-    
-    // Wait for service worker to be ready
-    await navigator.serviceWorker.ready;
-    
-    const token = await messaging.getToken({ 
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: await navigator.serviceWorker.getRegistration('./firebase-cloud-messaging-push-scope')
-    });
-    
-    if (token) {
-      console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
-      this.token = token;
-      localStorage.setItem('fcm_token', token);
+  async getToken() {
+    try {
+      console.log('🔑 Getting FCM token...');
       
-      // Save to server
-      await this.saveToken(token);
+      const token = await messaging.getToken({ vapidKey: VAPID_KEY });
       
-      return token;
-    } else {
-      console.warn('⚠️ No registration token available');
+      if (token) {
+        console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
+        this.token = token;
+        localStorage.setItem('fcm_token', token);
+        
+        await this.saveToken(token);
+        
+        return token;
+      } else {
+        console.warn('⚠️ No registration token available');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error getting FCM token:', error);
+      
+      if (error.code === 'messaging/permission-blocked') {
+        this.showBlockedInstructions();
+      } else {
+        this.showErrorMessage('Cannot get notification token: ' + error.message);
+      }
+      
       return null;
     }
-  } catch (error) {
-    console.error('❌ Error getting FCM token:', error);
-    
-    // Show specific error messages
-    if (error.code === 'messaging/failed-service-worker-registration') {
-      this.showServiceWorkerError();
-    } else if (error.code === 'messaging/permission-blocked') {
-      this.showBlockedInstructions();
-    } else {
-      this.showErrorMessage('Cannot get notification token: ' + error.message);
-    }
-    
-    return null;
   }
-}
-
-showServiceWorkerError() {
-  const status = document.getElementById('notificationStatus');
-  const statusText = document.getElementById('notificationStatusText');
-  if (status && statusText) {
-    status.classList.remove('hidden');
-    statusText.innerHTML = `
-      ❌ <strong>Service Worker Error</strong><br>
-      <small style="display: block; margin-top: 0.5rem;">
-        Firebase messaging service worker failed to register.<br>
-        Please try:
-      </small>
-      <ol style="margin: 0.5rem 0 0 1rem; padding: 0; text-align: left; font-size: 0.85rem; line-height: 1.5;">
-        <li>Hard refresh: Ctrl+Shift+R</li>
-        <li>Clear site data in DevTools</li>
-        <li>Reload the page</li>
-      </ol>
-    `;
-    statusText.className = 'status-error';
-  }
-}
 
   async saveToken(token) {
     try {
@@ -170,21 +149,50 @@ showServiceWorkerError() {
       status.classList.remove('hidden');
       
       if (this.permission === 'granted' && this.token) {
-        statusText.innerHTML = '✅ <strong>Notifications Enabled</strong><br><small>You will receive alerts</small>';
+        statusText.innerHTML = '✅ <strong>Notifications Enabled</strong><br><small>You will receive temperature alerts</small>';
         statusText.className = 'status-success';
         if (badge) badge.classList.add('hidden');
         
       } else if (this.permission === 'denied') {
-        statusText.innerHTML = '❌ <strong>Notifications Blocked</strong><br><small>Click below to fix</small>';
+        statusText.innerHTML = this.getMobileInstructions();
         statusText.className = 'status-error';
         if (badge) badge.classList.remove('hidden');
-        this.showBlockedInstructions();
         
       } else {
-        statusText.innerHTML = 'ℹ️ <strong>Enable Notifications</strong><br><small>Toggle switch above</small>';
+        statusText.innerHTML = 'ℹ️ <strong>Enable Notifications</strong><br><small>Toggle switch above to enable</small>';
         statusText.className = 'status-info';
         if (badge) badge.classList.remove('hidden');
       }
+    }
+  }
+
+  getMobileInstructions() {
+    if (this.isAndroid) {
+      return `
+        ❌ <strong>Notifications Blocked</strong><br>
+        <small style="display: block; margin-top: 0.75rem; line-height: 1.6;">
+          <strong>Follow these steps to enable:</strong>
+        </small>
+        <ol style="margin: 0.75rem 0 0.5rem 1.2rem; padding: 0; text-align: left; font-size: 0.9rem; line-height: 1.8;">
+          <li>Tap <strong>⋮</strong> (3 dots) at top right</li>
+          <li>Tap <strong>Settings</strong></li>
+          <li>Tap <strong>Site settings</strong></li>
+          <li>Tap <strong>Notifications</strong></li>
+          <li>Find <strong>saantie.github.io</strong></li>
+          <li>Change to <strong>Allow</strong></li>
+          <li>Come back and reload this page</li>
+        </ol>
+        <button id="openSettingsBtn" class="btn-primary" style="margin-top: 0.5rem; width: 100%;">
+          ⚙️ Open Settings (Try)
+        </button>
+      `;
+    } else {
+      return `
+        ❌ <strong>Notifications Blocked</strong><br>
+        <small style="display: block; margin-top: 0.5rem;">
+          Click lock icon 🔒 in address bar → Notifications → Allow
+        </small>
+      `;
     }
   }
 
@@ -195,7 +203,6 @@ showServiceWorkerError() {
         
         const { title, body } = payload.notification;
         
-        // Show notification
         const notification = new Notification(title, {
           body: body,
           icon: './icons/icon-192.png',
@@ -210,7 +217,6 @@ showServiceWorkerError() {
           notification.close();
         };
 
-        // Play sound (optional)
         this.playNotificationSound();
       });
       
@@ -225,7 +231,7 @@ showServiceWorkerError() {
       const audio = new Audio('data:audio/wav;base64,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');
       audio.play().catch(() => {});
     } catch (error) {
-      // Ignore sound errors
+      // Ignore
     }
   }
 
@@ -239,7 +245,29 @@ showServiceWorkerError() {
     return 'Desktop';
   }
 
-  // Error message helpers
+  showIOSWarning() {
+    const status = document.getElementById('notificationStatus');
+    const statusText = document.getElementById('notificationStatusText');
+    const toggle = document.getElementById('notificationToggle');
+    
+    if (toggle) toggle.disabled = true;
+    
+    if (status && statusText) {
+      status.classList.remove('hidden');
+      statusText.innerHTML = `
+        📱 <strong>iOS Not Supported</strong><br>
+        <small style="display: block; margin-top: 0.75rem; line-height: 1.6;">
+          Safari on iOS does not support Web Push Notifications.<br><br>
+          <strong>Alternatives:</strong><br>
+          • Use Chrome on Android device<br>
+          • Use Desktop browser (Chrome/Edge/Firefox)<br>
+          • Check app manually for updates
+        </small>
+      `;
+      statusText.className = 'status-error';
+    }
+  }
+
   showUnsupportedMessage() {
     const status = document.getElementById('notificationStatus');
     const statusText = document.getElementById('notificationStatusText');
@@ -255,7 +283,7 @@ showServiceWorkerError() {
     const statusText = document.getElementById('notificationStatusText');
     if (status && statusText) {
       status.classList.remove('hidden');
-      statusText.innerHTML = '🔒 <strong>HTTPS Required</strong><br><small>Notifications only work on HTTPS</small>';
+      statusText.innerHTML = '🔒 <strong>HTTPS Required</strong><br><small>Notifications only work on HTTPS sites</small>';
       statusText.className = 'status-error';
     }
   }
@@ -265,38 +293,13 @@ showServiceWorkerError() {
     const statusText = document.getElementById('notificationStatusText');
     if (status && statusText) {
       status.classList.remove('hidden');
-      statusText.innerHTML = `
-        ❌ <strong>Notifications Blocked</strong><br>
-        <small>To enable:</small><br>
-        <ol style="margin: 0.5rem 0 0 1rem; padding: 0; text-align: left; font-size: 0.85rem;">
-          <li>Click the lock icon 🔒 in address bar</li>
-          <li>Find "Notifications"</li>
-          <li>Change to "Allow"</li>
-          <li>Reload the page</li>
-        </ol>
-      `;
+      statusText.innerHTML = this.getMobileInstructions();
       statusText.className = 'status-error';
     }
   }
 
   showBlockedInstructions() {
-    const status = document.getElementById('notificationStatus');
-    const statusText = document.getElementById('notificationStatusText');
-    if (status && statusText) {
-      status.classList.remove('hidden');
-      statusText.innerHTML = `
-        ❌ <strong>Notifications Blocked by Browser</strong><br>
-        <small style="display: block; margin-top: 0.5rem;">Follow these steps:</small>
-        <ol style="margin: 0.5rem 0 0 1rem; padding: 0; text-align: left; font-size: 0.85rem; line-height: 1.5;">
-          <li>Click lock icon 🔒 in address bar</li>
-          <li>Click "Site settings"</li>
-          <li>Find "Notifications"</li>
-          <li>Select "Allow"</li>
-          <li>Close settings and reload</li>
-        </ol>
-      `;
-      statusText.className = 'status-error';
-    }
+    this.showDeniedInstructions();
   }
 
   showErrorMessage(message) {
@@ -310,5 +313,4 @@ showServiceWorkerError() {
   }
 }
 
-// Create instance
 const notificationManager = new NotificationManager();
