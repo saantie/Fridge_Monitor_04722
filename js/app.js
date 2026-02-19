@@ -118,6 +118,10 @@ function setupEventListeners() {
   // Time range buttons
   document.querySelectorAll('.range-btn').forEach(btn => {
     btn.addEventListener('click', handleTimeRangeChange);
+    // ที่บรรทัดท้ายสุดของ setupEventListeners()
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'openSettingsBtn') {
+    openAndroidSettings(); }  });
   });
 }
 
@@ -648,3 +652,29 @@ console.log(`
 ║   Status: Ready                ║
 ╚════════════════════════════════╝
 `);
+// ========== ANDROID SETTINGS ==========
+function openAndroidSettings() {
+  // Try to open Chrome settings for this site
+  const settingsUrls = [
+    'chrome://settings/content/siteDetails?site=' + encodeURIComponent(location.origin),
+    'about:preferences#privacy',
+    location.origin
+  ];
+  
+  // Try opening in new tab
+  try {
+    window.open(settingsUrls[0], '_blank');
+  } catch (error) {
+    // Fallback: show alert with instructions
+    alert(
+      'Cannot open settings automatically.\n\n' +
+      'Please follow these steps:\n' +
+      '1. Tap ⋮ (3 dots) at top right\n' +
+      '2. Tap Settings\n' +
+      '3. Tap Site settings\n' +
+      '4. Tap Notifications\n' +
+      '5. Find saantie.github.io\n' +
+      '6. Change to Allow'
+    );
+  }
+}
