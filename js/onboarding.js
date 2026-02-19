@@ -9,29 +9,17 @@ class OnboardingManager {
     this.isPWA = this.checkIfPWA();
   }
 
-  // Check if running as installed PWA
   checkIfPWA() {
-    // Check display mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    
-    // Check if launched from home screen (iOS)
     const isIOSStandalone = ('standalone' in window.navigator) && (window.navigator.standalone);
-    
-    // Check if Android TWA or installed PWA
     const isAndroidPWA = document.referrer.includes('android-app://');
     
     return isStandalone || isIOSStandalone || isAndroidPWA;
   }
 
   shouldShowOnboarding() {
-    // Show onboarding if:
-    // 1. Running as PWA
-    // 2. Haven't completed onboarding before
-    // 3. Don't have notification permission yet
-    
     return this.isPWA && 
-           !this.hasCompletedOnboarding && 
-           Notification.permission !== 'granted';
+           !this.hasCompletedOnboarding;
   }
 
   async start() {
@@ -48,18 +36,13 @@ class OnboardingManager {
   }
 
   async showOnboarding() {
-    // Create and show onboarding modal
     this.createOnboardingUI();
     
     const modal = document.getElementById('onboardingModal');
     modal.classList.remove('hidden');
-    
-    // Prevent closing by clicking outside
-    modal.style.pointerEvents = 'auto';
   }
 
   createOnboardingUI() {
-    // Check if already exists
     if (document.getElementById('onboardingModal')) {
       return;
     }
@@ -75,7 +58,7 @@ class OnboardingManager {
             <button id="onboardingNext1" class="btn-primary btn-large">Get Started</button>
           </div>
 
-          <!-- Step 2: Notifications -->
+          <!-- Step 2: Check Permission Status -->
           <div id="onboardingStep2" class="onboarding-step hidden">
             <div class="onboarding-icon">🔔</div>
             <h2>Enable Notifications</h2>
@@ -105,12 +88,14 @@ class OnboardingManager {
               </div>
             </div>
 
-            <div id="notificationError" class="notification-error hidden"></div>
+            <div id="permissionStatusBox" class="permission-status-box"></div>
 
-            <button id="onboardingEnableNotifications" class="btn-primary btn-large">
-              🔔 Enable Notifications
-            </button>
-            <button id="onboardingSkip" class="btn-secondary">Skip for now</button>
+            <div id="notificationButtons" class="notification-buttons">
+              <button id="onboardingEnableNotifications" class="btn-primary btn-large">
+                🔔 Enable Notifications
+              </button>
+              <button id="onboardingSkip" class="btn-secondary">Skip for now</button>
+            </div>
           </div>
 
           <!-- Step 3: Success -->
@@ -136,25 +121,21 @@ class OnboardingManager {
   }
 
   setupEventListeners() {
-    // Step 1 -> Step 2
     const next1 = document.getElementById('onboardingNext1');
     if (next1) {
-      next1.addEventListener('click', () => this.goToStep(2));
+      next1.addEventListener('click', () => this.goToStep2());
     }
 
-    // Enable Notifications
     const enableBtn = document.getElementById('onboardingEnableNotifications');
     if (enableBtn) {
-      enableBtn.addEventListener('click', () => this.requestNotifications());
+      enableBtn.addEventListener('click', () => this.handleEnableNotifications());
     }
 
-    // Skip
     const skipBtn = document.getElementById('onboardingSkip');
     if (skipBtn) {
       skipBtn.addEventListener('click', () => this.skipOnboarding());
     }
 
-    // Finish
     const finishBtn = document.getElementById('onboardingFinish');
     if (finishBtn) {
       finishBtn.addEventListener('click', () => this.completeOnboarding());
@@ -162,93 +143,220 @@ class OnboardingManager {
   }
 
   goToStep(stepNumber) {
-    // Hide all steps
     document.querySelectorAll('.onboarding-step').forEach(step => {
       step.classList.add('hidden');
     });
 
-    // Show target step
     const targetStep = document.getElementById(`onboardingStep${stepNumber}`);
     if (targetStep) {
       targetStep.classList.remove('hidden');
     }
   }
 
-  async requestNotifications() {
-    const errorDiv = document.getElementById('notificationError');
+  async goToStep2() {
+    this.goToStep(2);
+    await this.checkPermissionStatus();
+  }
+
+  async checkPermissionStatus() {
+    const statusBox = document.getElementById('permissionStatusBox');
     const enableBtn = document.getElementById('onboardingEnableNotifications');
     
+    const permission = Notification.permission;
+    console.log('🔍 Current permission:', permission);
+
+    // Check if iOS
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) {
+      statusBox.innerHTML = this.getIOSMessage();
+      statusBox.className = 'permission-status-box blocked';
+      enableBtn.style.display = 'none';
+      return;
+    }
+
+    if (permission === 'denied') {
+      // Permission was blocked before
+      statusBox.innerHTML = this.getResetInstructionsHTML();
+      statusBox.className = 'permission-status-box blocked';
+      enableBtn.textContent = '⚙️ I have reset permissions';
+      
+    } else if (permission === 'granted') {
+      // Already granted
+      statusBox.innerHTML = `
+        <div class="permission-already-granted">
+          ✅ <strong>Notifications already enabled!</strong>
+        </div>
+      `;
+      statusBox.className = 'permission-status-box granted';
+      
+      // Get FCM token
+      await notificationManager.getToken();
+      
+      // Auto proceed to next step
+      setTimeout(() => {
+        this.goToStep(3);
+      }, 1000);
+      
+    } else {
+      // Default - can request
+      statusBox.innerHTML = `
+        <div class="permission-ready">
+          ℹ️ <strong>Ready to enable notifications</strong><br>
+          <small>Click the button below to allow notifications</small>
+        </div>
+      `;
+      statusBox.className = 'permission-status-box ready';
+    }
+  }
+
+  getIOSMessage() {
+    return `
+      <div class="ios-warning">
+        <div class="warning-icon">📱</div>
+        <strong>iOS Not Supported</strong><br>
+        <p>Safari on iOS doesn't support web push notifications.</p>
+        <p><strong>Alternatives:</strong></p>
+        <ul>
+          <li>Use Chrome on Android device</li>
+          <li>Use Desktop browser (Chrome/Edge/Firefox)</li>
+          <li>Check app manually for updates</li>
+        </ul>
+      </div>
+    `;
+  }
+
+  getResetInstructionsHTML() {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      return `
+        <div class="permission-blocked">
+          <div class="blocked-icon">🚫</div>
+          <strong>Notifications are currently blocked</strong>
+          <p>You need to reset permissions first:</p>
+          
+          <div class="reset-steps">
+            <h4>📱 On Android:</h4>
+            <ol>
+              <li>Tap <strong>⋮</strong> (3 dots) at top right</li>
+              <li>Tap <strong>Settings</strong></li>
+              <li>Tap <strong>Site settings</strong></li>
+              <li>Tap <strong>Notifications</strong></li>
+              <li>Find <strong>saantie.github.io</strong></li>
+              <li>Change <strong>Blocked</strong> to <strong>Allow</strong></li>
+              <li>Come back here and tap "I have reset permissions"</li>
+            </ol>
+          </div>
+          
+          <div class="help-video">
+            <small>💡 Tip: You may need to close and reopen the app after changing settings</small>
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="permission-blocked">
+          <div class="blocked-icon">🚫</div>
+          <strong>Notifications are currently blocked</strong>
+          <p>You need to reset permissions first:</p>
+          
+          <div class="reset-steps">
+            <h4>🖥️ On Desktop:</h4>
+            <ol>
+              <li>Click the <strong>🔒 lock icon</strong> in the address bar</li>
+              <li>Find <strong>Notifications</strong></li>
+              <li>Change from <strong>Block</strong> to <strong>Ask</strong> or <strong>Allow</strong></li>
+              <li>Reload this page (Ctrl+R or Cmd+R)</li>
+            </ol>
+            
+            <p style="margin-top: 1rem;"><strong>Alternative:</strong></p>
+            <ol>
+              <li>Right-click the address bar</li>
+              <li>Select <strong>Site settings</strong></li>
+              <li>Find <strong>Notifications</strong> → <strong>Allow</strong></li>
+              <li>Reload the page</li>
+            </ol>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  async handleEnableNotifications() {
+    const enableBtn = document.getElementById('onboardingEnableNotifications');
+    const statusBox = document.getElementById('permissionStatusBox');
+    
+    const currentPermission = Notification.permission;
+
+    if (currentPermission === 'denied') {
+      // Check if user has reset it
+      const recheckPermission = Notification.permission;
+      
+      if (recheckPermission === 'denied') {
+        // Still denied - show instructions again
+        alert(
+          '⚠️ Notifications are still blocked.\n\n' +
+          'Please follow the instructions above to reset permissions in your browser settings, ' +
+          'then reload the app and try again.'
+        );
+        return;
+      }
+    }
+
     try {
       enableBtn.disabled = true;
       enableBtn.textContent = '⏳ Requesting...';
 
-      // Check if iOS
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isIOS) {
-        errorDiv.classList.remove('hidden');
-        errorDiv.innerHTML = `
-          ⚠️ <strong>iOS Not Supported</strong><br>
-          <small>Safari on iOS doesn't support web push notifications. Please use Chrome on Android or Desktop browser.</small>
-        `;
-        enableBtn.disabled = false;
-        enableBtn.textContent = '🔔 Enable Notifications';
-        return;
-      }
-
-      // Request permission
       const permission = await Notification.requestPermission();
 
       if (permission === 'granted') {
         console.log('✅ Notification permission granted');
         
+        statusBox.innerHTML = `
+          <div class="permission-success">
+            ✅ <strong>Success!</strong> Getting notification token...
+          </div>
+        `;
+        statusBox.className = 'permission-status-box granted';
+        
         // Get FCM token
         await notificationManager.getToken();
         
         // Go to success step
-        this.goToStep(3);
+        setTimeout(() => {
+          this.goToStep(3);
+        }, 1000);
         
       } else if (permission === 'denied') {
-        errorDiv.classList.remove('hidden');
-        errorDiv.innerHTML = this.getPermissionDeniedMessage();
+        // User clicked "Block" or "Don't allow"
+        statusBox.innerHTML = this.getResetInstructionsHTML();
+        statusBox.className = 'permission-status-box blocked';
         enableBtn.disabled = false;
-        enableBtn.textContent = '🔔 Enable Notifications';
+        enableBtn.textContent = '⚙️ I have reset permissions';
         
       } else {
-        // User dismissed
-        errorDiv.classList.remove('hidden');
-        errorDiv.innerHTML = '⚠️ You dismissed the permission request. Please try again or skip.';
+        // User dismissed (clicked X)
+        statusBox.innerHTML = `
+          <div class="permission-dismissed">
+            ⚠️ <strong>Permission request dismissed</strong><br>
+            <small>Please try again or skip for now</small>
+          </div>
+        `;
+        statusBox.className = 'permission-status-box dismissed';
         enableBtn.disabled = false;
         enableBtn.textContent = '🔔 Try Again';
       }
 
     } catch (error) {
       console.error('Error requesting notifications:', error);
-      errorDiv.classList.remove('hidden');
-      errorDiv.innerHTML = `❌ Error: ${error.message}`;
+      statusBox.innerHTML = `
+        <div class="permission-error">
+          ❌ <strong>Error:</strong> ${error.message}
+        </div>
+      `;
+      statusBox.className = 'permission-status-box error';
       enableBtn.disabled = false;
-      enableBtn.textContent = '🔔 Enable Notifications';
-    }
-  }
-
-  getPermissionDeniedMessage() {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      return `
-        ❌ <strong>Permission Blocked</strong><br>
-        <small>To enable notifications:</small><br>
-        <ol style="margin: 0.5rem 0 0 1rem; text-align: left; font-size: 0.85rem;">
-          <li>Tap ⋮ (menu) → Settings</li>
-          <li>Site settings → Notifications</li>
-          <li>Find this site → Allow</li>
-          <li>Reload the app</li>
-        </ol>
-      `;
-    } else {
-      return `
-        ❌ <strong>Permission Blocked</strong><br>
-        <small>Click the 🔒 lock icon in address bar → Notifications → Allow</small>
-      `;
+      enableBtn.textContent = '🔔 Try Again';
     }
   }
 
@@ -264,7 +372,6 @@ class OnboardingManager {
     const modal = document.getElementById('onboardingModal');
     if (modal) {
       modal.classList.add('hidden');
-      // Remove after animation
       setTimeout(() => {
         modal.remove();
       }, 300);
@@ -273,7 +380,6 @@ class OnboardingManager {
     console.log('✅ Onboarding completed');
   }
 
-  // Reset onboarding (for testing)
   reset() {
     localStorage.removeItem('onboarding_completed');
     this.hasCompletedOnboarding = false;
@@ -281,5 +387,4 @@ class OnboardingManager {
   }
 }
 
-// Create global instance
 const onboardingManager = new OnboardingManager();
