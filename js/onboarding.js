@@ -288,125 +288,127 @@ class OnboardingManager {
    * Get reset instructions HTML
    */
   getResetInstructionsHTML() {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      return `
-        <div class="permission-blocked">
-          <div class="blocked-icon">🚫</div>
-          <strong>Notifications are currently blocked</strong>
-          <p>Choose the easiest method for you:</p>
-          
-          <!-- Quick Action Buttons -->
-          <div class="quick-actions">
-            <button id="openChromeSettings" class="btn-action">
-              ⚙️ Open Chrome Settings
-            </button>
-            <button id="copyAppUrl" class="btn-action">
-              📋 Copy App URL
-            </button>
-          </div>
-
-          <!-- Method 1: Uninstall & Reinstall -->
-          <div class="reset-method recommended">
-            <div class="method-badge">⭐ RECOMMENDED</div>
-            <h4>✨ Method 1: Reinstall App</h4>
-            <ol>
-              <li><strong>Long press</strong> the app icon on home screen</li>
-              <li>Tap <strong>Uninstall</strong> or <strong>Remove from Home screen</strong></li>
-              <li>Open Chrome → Paste URL (use Copy button above)</li>
-              <li>Menu <strong>⋮</strong> → <strong>Add to Home screen</strong></li>
-              <li>Open new app → Accept notifications</li>
-            </ol>
-            <div class="method-note">✅ This completely resets permissions</div>
-          </div>
-
-          <!-- Method 2: Clear Site Data -->
-          <div class="reset-method">
-            <h4>🗑️ Method 2: Clear Site Data</h4>
-            <ol>
-              <li>Open Chrome app (not the installed PWA)</li>
-              <li>Go to this URL (use Copy button above)</li>
-              <li><strong>⋮</strong> → <strong>Settings</strong></li>
-              <li><strong>Site settings</strong> → <strong>All sites</strong></li>
-              <li>Find and tap <strong>saantie.github.io</strong></li>
-              <li>Tap <strong>Clear & reset</strong></li>
-              <li>Reload the page</li>
-            </ol>
-          </div>
-
-          <!-- Method 3: Add Exception -->
-          <div class="reset-method">
-            <h4>⚙️ Method 3: Add Site Exception</h4>
-            <ol>
-              <li>Open Chrome → <strong>⋮</strong> → <strong>Settings</strong></li>
-              <li><strong>Site settings</strong> → <strong>Notifications</strong></li>
-              <li>Under "Allowed", tap <strong>Add site exception</strong></li>
-              <li>Paste: <code>https://saantie.github.io</code></li>
-              <li>Tap <strong>Add</strong></li>
-              <li>Reload this app</li>
-            </ol>
-          </div>
-          
-          <div class="help-footer">
-            <p>💡 <strong>After completing any method:</strong></p>
-            <p>Close and reopen the app, then tap "I have reset permissions" below</p>
-          </div>
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    return `
+      <div class="permission-blocked">
+        <div class="blocked-icon">🚫</div>
+        <strong>Notifications are currently blocked</strong>
+        <p>Choose the easiest method for you:</p>
+        
+        <!-- Scroll indicator -->
+        <div class="scroll-indicator">👇 Scroll to see all methods 👇</div>
+        
+        <!-- Quick Action Buttons -->
+        <div class="quick-actions">
+          <button id="openChromeSettings" class="btn-action">
+            ⚙️ Settings
+          </button>
+          <button id="copyAppUrl" class="btn-action">
+            📋 Copy URL
+          </button>
         </div>
-      `;
-    } else {
-      // Desktop
-      return `
-        <div class="permission-blocked">
-          <div class="blocked-icon">🚫</div>
-          <strong>Notifications are currently blocked</strong>
-          <p>Choose one of these methods:</p>
-          
-          <!-- Desktop Method 1 -->
-          <div class="reset-method recommended">
-            <div class="method-badge">⭐ FASTEST</div>
-            <h4>🔒 Method 1: From Address Bar</h4>
-            <ol>
-              <li>Click the <strong>🔒 lock icon</strong> or <strong>ℹ️ info icon</strong> in address bar (left side)</li>
-              <li>Find <strong>Notifications</strong></li>
-              <li>Change from <strong>Block</strong> to <strong>Ask</strong> or <strong>Allow</strong></li>
-              <li>Reload this page (F5 or Ctrl+R)</li>
-            </ol>
-          </div>
 
-          <!-- Desktop Method 2 -->
-          <div class="reset-method">
-            <h4>⚙️ Method 2: Chrome Settings</h4>
-            <ol>
-              <li>Copy this: <code>chrome://settings/content/notifications</code></li>
-              <li>Paste in address bar and press Enter</li>
-              <li>Under "Not allowed", find <strong>saantie.github.io</strong></li>
-              <li>Click <strong>⋮</strong> (3 dots) → <strong>Allow</strong></li>
-              <li>Come back here and reload</li>
-            </ol>
-          </div>
-
-          <!-- Desktop Method 3 -->
-          <div class="reset-method">
-            <h4>🗑️ Method 3: Clear & Retry</h4>
-            <ol>
-              <li>Press <strong>F12</strong> to open DevTools</li>
-              <li>Go to <strong>Application</strong> tab</li>
-              <li>Click <strong>Clear storage</strong> (left sidebar)</li>
-              <li>Click <strong>Clear site data</strong> button</li>
-              <li>Close DevTools and reload page</li>
-            </ol>
-          </div>
-
-          <div class="help-footer">
-            <p>💡 <strong>After completing any method:</strong></p>
-            <p>Reload this page and tap "I have reset permissions" below</p>
-          </div>
+        <!-- Method 1: Uninstall & Reinstall -->
+        <div class="reset-method recommended">
+          <div class="method-badge">⭐ EASIEST</div>
+          <h4>✨ Method 1: Reinstall App</h4>
+          <ol>
+            <li><strong>Long press</strong> app icon</li>
+            <li>Tap <strong>Uninstall</strong></li>
+            <li>Open Chrome</li>
+            <li>Paste URL (use Copy above)</li>
+            <li><strong>⋮</strong> → <strong>Add to Home screen</strong></li>
+            <li>Open → Accept notifications</li>
+          </ol>
+          <div class="method-note">✅ Resets all permissions</div>
         </div>
-      `;
-    }
+
+        <!-- Method 2: Clear Site Data -->
+        <div class="reset-method">
+          <h4>🗑️ Method 2: Clear Data</h4>
+          <ol>
+            <li>Open <strong>Chrome</strong> (not PWA)</li>
+            <li>Go to URL (Copy above)</li>
+            <li><strong>⋮</strong> → <strong>Settings</strong></li>
+            <li><strong>Site settings</strong> → <strong>All sites</strong></li>
+            <li>Find <strong>saantie.github.io</strong></li>
+            <li><strong>Clear & reset</strong></li>
+            <li>Reload page</li>
+          </ol>
+        </div>
+
+        <!-- Method 3: Add Exception -->
+        <div class="reset-method">
+          <h4>⚙️ Method 3: Add Exception</h4>
+          <ol>
+            <li>Chrome → <strong>⋮</strong> → <strong>Settings</strong></li>
+            <li><strong>Site settings</strong> → <strong>Notifications</strong></li>
+            <li>Under "Allowed" → <strong>Add site</strong></li>
+            <li>Paste: <code>https://saantie.github.io</code></li>
+            <li>Tap <strong>Add</strong></li>
+            <li>Reload app</li>
+          </ol>
+        </div>
+        
+        <div class="help-footer">
+          <p>💡 <strong>After any method:</strong></p>
+          <p>Close app → Reopen → Tap "I have reset permissions"</p>
+        </div>
+      </div>
+    `;
+  } else {
+    // Desktop version - shorter
+    return `
+      <div class="permission-blocked">
+        <div class="blocked-icon">🚫</div>
+        <strong>Notifications are currently blocked</strong>
+        <p>Choose one method:</p>
+        
+        <!-- Desktop Method 1 -->
+        <div class="reset-method recommended">
+          <div class="method-badge">⭐ FASTEST</div>
+          <h4>🔒 Method 1: Address Bar</h4>
+          <ol>
+            <li>Click <strong>🔒</strong> in address bar</li>
+            <li>Find <strong>Notifications</strong></li>
+            <li>Change to <strong>Allow</strong></li>
+            <li>Reload (F5)</li>
+          </ol>
+        </div>
+
+        <!-- Desktop Method 2 -->
+        <div class="reset-method">
+          <h4>⚙️ Method 2: Settings</h4>
+          <ol>
+            <li>Copy: <code>chrome://settings/content/notifications</code></li>
+            <li>Paste in address bar → Enter</li>
+            <li>Find <strong>saantie.github.io</strong> in "Not allowed"</li>
+            <li>Click <strong>⋮</strong> → <strong>Allow</strong></li>
+            <li>Reload</li>
+          </ol>
+        </div>
+
+        <!-- Desktop Method 3 -->
+        <div class="reset-method">
+          <h4>🗑️ Method 3: Clear Data</h4>
+          <ol>
+            <li>Press <strong>F12</strong></li>
+            <li><strong>Application</strong> tab</li>
+            <li><strong>Clear storage</strong></li>
+            <li><strong>Clear site data</strong></li>
+            <li>Reload</li>
+          </ol>
+        </div>
+
+        <div class="help-footer">
+          <p>💡 Reload after any method</p>
+        </div>
+      </div>
+    `;
   }
-
+}
   /**
    * Handle enable notifications button click
    */
