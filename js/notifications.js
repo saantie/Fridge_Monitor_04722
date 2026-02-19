@@ -58,38 +58,67 @@ class NotificationManager {
     }
   }
 
-  async getToken() {
-    try {
-      console.log('🔑 Getting FCM token...');
+async getToken() {
+  try {
+    console.log('🔑 Getting FCM token...');
+    
+    // Wait for service worker to be ready
+    await navigator.serviceWorker.ready;
+    
+    const token = await messaging.getToken({ 
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: await navigator.serviceWorker.getRegistration('./firebase-cloud-messaging-push-scope')
+    });
+    
+    if (token) {
+      console.log('✅ FCM Token received:', token.substring(0, 20) + '...');
+      this.token = token;
+      localStorage.setItem('fcm_token', token);
       
-      const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+      // Save to server
+      await this.saveToken(token);
       
-      if (token) {
-        console.log('✅ FCM Token received');
-        this.token = token;
-        localStorage.setItem('fcm_token', token);
-        
-        // Save to server
-        await this.saveToken(token);
-        
-        return token;
-      } else {
-        console.warn('⚠️ No registration token available');
-        return null;
-      }
-    } catch (error) {
-      console.error('❌ Error getting FCM token:', error);
-      
-      // Show specific error messages
-      if (error.code === 'messaging/permission-blocked') {
-        this.showBlockedInstructions();
-      } else {
-        this.showErrorMessage('Cannot get notification token: ' + error.message);
-      }
-      
+      return token;
+    } else {
+      console.warn('⚠️ No registration token available');
       return null;
     }
+  } catch (error) {
+    console.error('❌ Error getting FCM token:', error);
+    
+    // Show specific error messages
+    if (error.code === 'messaging/failed-service-worker-registration') {
+      this.showServiceWorkerError();
+    } else if (error.code === 'messaging/permission-blocked') {
+      this.showBlockedInstructions();
+    } else {
+      this.showErrorMessage('Cannot get notification token: ' + error.message);
+    }
+    
+    return null;
   }
+}
+
+showServiceWorkerError() {
+  const status = document.getElementById('notificationStatus');
+  const statusText = document.getElementById('notificationStatusText');
+  if (status && statusText) {
+    status.classList.remove('hidden');
+    statusText.innerHTML = `
+      ❌ <strong>Service Worker Error</strong><br>
+      <small style="display: block; margin-top: 0.5rem;">
+        Firebase messaging service worker failed to register.<br>
+        Please try:
+      </small>
+      <ol style="margin: 0.5rem 0 0 1rem; padding: 0; text-align: left; font-size: 0.85rem; line-height: 1.5;">
+        <li>Hard refresh: Ctrl+Shift+R</li>
+        <li>Clear site data in DevTools</li>
+        <li>Reload the page</li>
+      </ol>
+    `;
+    statusText.className = 'status-error';
+  }
+}
 
   async saveToken(token) {
     try {
