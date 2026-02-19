@@ -1,6 +1,8 @@
 /**
+ * ========================================
  * Onboarding & Permission Manager
  * Handles first-time setup after PWA installation
+ * ========================================
  */
 
 class OnboardingManager {
@@ -9,19 +11,32 @@ class OnboardingManager {
     this.isPWA = this.checkIfPWA();
   }
 
+  /**
+   * Check if running as installed PWA
+   */
   checkIfPWA() {
+    // Check display mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    
+    // Check if launched from home screen (iOS)
     const isIOSStandalone = ('standalone' in window.navigator) && (window.navigator.standalone);
+    
+    // Check if Android TWA or installed PWA
     const isAndroidPWA = document.referrer.includes('android-app://');
     
     return isStandalone || isIOSStandalone || isAndroidPWA;
   }
 
+  /**
+   * Check if should show onboarding
+   */
   shouldShowOnboarding() {
-    return this.isPWA && 
-           !this.hasCompletedOnboarding;
+    return this.isPWA && !this.hasCompletedOnboarding;
   }
 
+  /**
+   * Start onboarding process
+   */
   async start() {
     console.log('🎯 Onboarding check:', {
       isPWA: this.isPWA,
@@ -35,14 +50,23 @@ class OnboardingManager {
     }
   }
 
+  /**
+   * Show onboarding modal
+   */
   async showOnboarding() {
     this.createOnboardingUI();
     
     const modal = document.getElementById('onboardingModal');
-    modal.classList.remove('hidden');
+    if (modal) {
+      modal.classList.remove('hidden');
+    }
   }
 
+  /**
+   * Create onboarding UI
+   */
   createOnboardingUI() {
+    // Check if already exists
     if (document.getElementById('onboardingModal')) {
       return;
     }
@@ -58,7 +82,7 @@ class OnboardingManager {
             <button id="onboardingNext1" class="btn-primary btn-large">Get Started</button>
           </div>
 
-          <!-- Step 2: Check Permission Status -->
+          <!-- Step 2: Notifications -->
           <div id="onboardingStep2" class="onboarding-step hidden">
             <div class="onboarding-icon">🔔</div>
             <h2>Enable Notifications</h2>
@@ -120,28 +144,48 @@ class OnboardingManager {
     this.setupEventListeners();
   }
 
+  /**
+   * Setup event listeners
+   */
   setupEventListeners() {
+    // Step 1 -> Step 2
     const next1 = document.getElementById('onboardingNext1');
     if (next1) {
       next1.addEventListener('click', () => this.goToStep2());
     }
 
+    // Enable Notifications
     const enableBtn = document.getElementById('onboardingEnableNotifications');
     if (enableBtn) {
       enableBtn.addEventListener('click', () => this.handleEnableNotifications());
     }
 
+    // Skip
     const skipBtn = document.getElementById('onboardingSkip');
     if (skipBtn) {
       skipBtn.addEventListener('click', () => this.skipOnboarding());
     }
 
+    // Finish
     const finishBtn = document.getElementById('onboardingFinish');
     if (finishBtn) {
       finishBtn.addEventListener('click', () => this.completeOnboarding());
     }
+
+    // Quick action buttons (will be created dynamically)
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'openChromeSettings') {
+        this.openChromeSettings();
+      }
+      if (e.target && e.target.id === 'copyAppUrl') {
+        this.copyAppUrl();
+      }
+    });
   }
 
+  /**
+   * Go to specific step
+   */
   goToStep(stepNumber) {
     document.querySelectorAll('.onboarding-step').forEach(step => {
       step.classList.add('hidden');
@@ -153,11 +197,17 @@ class OnboardingManager {
     }
   }
 
+  /**
+   * Go to step 2 and check permission status
+   */
   async goToStep2() {
     this.goToStep(2);
     await this.checkPermissionStatus();
   }
 
+  /**
+   * Check current permission status
+   */
   async checkPermissionStatus() {
     const statusBox = document.getElementById('permissionStatusBox');
     const enableBtn = document.getElementById('onboardingEnableNotifications');
@@ -170,7 +220,7 @@ class OnboardingManager {
     if (isIOS) {
       statusBox.innerHTML = this.getIOSMessage();
       statusBox.className = 'permission-status-box blocked';
-      enableBtn.style.display = 'none';
+      if (enableBtn) enableBtn.style.display = 'none';
       return;
     }
 
@@ -178,7 +228,9 @@ class OnboardingManager {
       // Permission was blocked before
       statusBox.innerHTML = this.getResetInstructionsHTML();
       statusBox.className = 'permission-status-box blocked';
-      enableBtn.textContent = '⚙️ I have reset permissions';
+      if (enableBtn) {
+        enableBtn.textContent = '⚙️ I have reset permissions';
+      }
       
     } else if (permission === 'granted') {
       // Already granted
@@ -190,7 +242,11 @@ class OnboardingManager {
       statusBox.className = 'permission-status-box granted';
       
       // Get FCM token
-      await notificationManager.getToken();
+      try {
+        await notificationManager.getToken();
+      } catch (error) {
+        console.error('Error getting token:', error);
+      }
       
       // Auto proceed to next step
       setTimeout(() => {
@@ -209,6 +265,9 @@ class OnboardingManager {
     }
   }
 
+  /**
+   * Get iOS warning message
+   */
   getIOSMessage() {
     return `
       <div class="ios-warning">
@@ -225,109 +284,132 @@ class OnboardingManager {
     `;
   }
 
-getResetInstructionsHTML() {
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  
-  if (isMobile) {
-    return `
-      <div class="permission-blocked">
-        <div class="blocked-icon">🚫</div>
-        <strong>Notifications are currently blocked</strong>
-        <p>Choose one of these methods to enable:</p>
-        
-        <!-- Method 1: Uninstall & Reinstall -->
-        <div class="reset-method">
-          <h4>✨ Method 1: Reinstall App (Easiest)</h4>
-          <ol>
-            <li><strong>Long press</strong> the app icon on home screen</li>
-            <li>Tap <strong>Uninstall</strong> or <strong>Remove</strong></li>
-            <li>Open Chrome and go to:<br>
-                <code>https://saantie.github.io/Fridge_Monitor_04722/</code></li>
-            <li>Menu <strong>⋮</strong> → <strong>Add to Home screen</strong></li>
-            <li>Open the new app → Enable notifications</li>
-          </ol>
-        </div>
+  /**
+   * Get reset instructions HTML
+   */
+  getResetInstructionsHTML() {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      return `
+        <div class="permission-blocked">
+          <div class="blocked-icon">🚫</div>
+          <strong>Notifications are currently blocked</strong>
+          <p>Choose the easiest method for you:</p>
+          
+          <!-- Quick Action Buttons -->
+          <div class="quick-actions">
+            <button id="openChromeSettings" class="btn-action">
+              ⚙️ Open Chrome Settings
+            </button>
+            <button id="copyAppUrl" class="btn-action">
+              📋 Copy App URL
+            </button>
+          </div>
 
-        <!-- Method 2: Clear Site Data -->
-        <div class="reset-method">
-          <h4>🗑️ Method 2: Clear Site Data</h4>
-          <ol>
-            <li>Open this app in <strong>Chrome browser</strong> (not as installed app)</li>
-            <li>Tap <strong>⋮</strong> (3 dots) at top right</li>
-            <li>Tap <strong>Settings</strong></li>
-            <li>Tap <strong>Site settings</strong></li>
-            <li>Scroll down → Tap <strong>All sites</strong></li>
-            <li>Find <strong>saantie.github.io</strong></li>
-            <li>Tap <strong>Clear & reset</strong></li>
-            <li>Go back and reload the page</li>
-          </ol>
-        </div>
+          <!-- Method 1: Uninstall & Reinstall -->
+          <div class="reset-method recommended">
+            <div class="method-badge">⭐ RECOMMENDED</div>
+            <h4>✨ Method 1: Reinstall App</h4>
+            <ol>
+              <li><strong>Long press</strong> the app icon on home screen</li>
+              <li>Tap <strong>Uninstall</strong> or <strong>Remove from Home screen</strong></li>
+              <li>Open Chrome → Paste URL (use Copy button above)</li>
+              <li>Menu <strong>⋮</strong> → <strong>Add to Home screen</strong></li>
+              <li>Open new app → Accept notifications</li>
+            </ol>
+            <div class="method-note">✅ This completely resets permissions</div>
+          </div>
 
-        <!-- Method 3: Manual Add -->
-        <div class="reset-method">
-          <h4>⚙️ Method 3: Add Manually</h4>
-          <ol>
-            <li>Tap <strong>⋮</strong> (3 dots) → <strong>Settings</strong></li>
-            <li>Tap <strong>Site settings</strong></li>
-            <li>Tap <strong>Notifications</strong></li>
-            <li>Under "Allowed", tap <strong>Add site exception</strong></li>
-            <li>Enter: <strong>https://saantie.github.io</strong></li>
-            <li>Tap <strong>Add</strong></li>
-            <li>Come back here and reload</li>
-          </ol>
-        </div>
-        
-        <div class="help-video">
-          <small>💡 After completing any method, come back and tap "I have reset permissions" below</small>
-        </div>
-      </div>
-    `;
-  } else {
-    return `
-      <div class="permission-blocked">
-        <div class="blocked-icon">🚫</div>
-        <strong>Notifications are currently blocked</strong>
-        <p>Choose one of these methods:</p>
-        
-        <!-- Desktop Method 1 -->
-        <div class="reset-method">
-          <h4>🔒 Method 1: From Address Bar (Fastest)</h4>
-          <ol>
-            <li>Click the <strong>🔒 lock icon</strong> or <strong>ℹ️ info icon</strong> in address bar (left side)</li>
-            <li>Find <strong>Notifications</strong></li>
-            <li>Change from <strong>Block</strong> to <strong>Ask</strong> or <strong>Allow</strong></li>
-            <li>Reload this page (F5 or Ctrl+R)</li>
-          </ol>
-        </div>
+          <!-- Method 2: Clear Site Data -->
+          <div class="reset-method">
+            <h4>🗑️ Method 2: Clear Site Data</h4>
+            <ol>
+              <li>Open Chrome app (not the installed PWA)</li>
+              <li>Go to this URL (use Copy button above)</li>
+              <li><strong>⋮</strong> → <strong>Settings</strong></li>
+              <li><strong>Site settings</strong> → <strong>All sites</strong></li>
+              <li>Find and tap <strong>saantie.github.io</strong></li>
+              <li>Tap <strong>Clear & reset</strong></li>
+              <li>Reload the page</li>
+            </ol>
+          </div>
 
-        <!-- Desktop Method 2 -->
-        <div class="reset-method">
-          <h4>⚙️ Method 2: Chrome Settings</h4>
-          <ol>
-            <li>Copy this: <code>chrome://settings/content/notifications</code></li>
-            <li>Paste in address bar and press Enter</li>
-            <li>Under "Not allowed", find <strong>saantie.github.io</strong></li>
-            <li>Click <strong>⋮</strong> (3 dots) → <strong>Allow</strong></li>
-            <li>Come back here and reload</li>
-          </ol>
+          <!-- Method 3: Add Exception -->
+          <div class="reset-method">
+            <h4>⚙️ Method 3: Add Site Exception</h4>
+            <ol>
+              <li>Open Chrome → <strong>⋮</strong> → <strong>Settings</strong></li>
+              <li><strong>Site settings</strong> → <strong>Notifications</strong></li>
+              <li>Under "Allowed", tap <strong>Add site exception</strong></li>
+              <li>Paste: <code>https://saantie.github.io</code></li>
+              <li>Tap <strong>Add</strong></li>
+              <li>Reload this app</li>
+            </ol>
+          </div>
+          
+          <div class="help-footer">
+            <p>💡 <strong>After completing any method:</strong></p>
+            <p>Close and reopen the app, then tap "I have reset permissions" below</p>
+          </div>
         </div>
+      `;
+    } else {
+      // Desktop
+      return `
+        <div class="permission-blocked">
+          <div class="blocked-icon">🚫</div>
+          <strong>Notifications are currently blocked</strong>
+          <p>Choose one of these methods:</p>
+          
+          <!-- Desktop Method 1 -->
+          <div class="reset-method recommended">
+            <div class="method-badge">⭐ FASTEST</div>
+            <h4>🔒 Method 1: From Address Bar</h4>
+            <ol>
+              <li>Click the <strong>🔒 lock icon</strong> or <strong>ℹ️ info icon</strong> in address bar (left side)</li>
+              <li>Find <strong>Notifications</strong></li>
+              <li>Change from <strong>Block</strong> to <strong>Ask</strong> or <strong>Allow</strong></li>
+              <li>Reload this page (F5 or Ctrl+R)</li>
+            </ol>
+          </div>
 
-        <!-- Desktop Method 3 -->
-        <div class="reset-method">
-          <h4>🗑️ Method 3: Clear & Retry</h4>
-          <ol>
-            <li>Press <strong>F12</strong> to open DevTools</li>
-            <li>Go to <strong>Application</strong> tab</li>
-            <li>Click <strong>Clear storage</strong> (left sidebar)</li>
-            <li>Click <strong>Clear site data</strong> button</li>
-            <li>Close DevTools and reload page</li>
-          </ol>
+          <!-- Desktop Method 2 -->
+          <div class="reset-method">
+            <h4>⚙️ Method 2: Chrome Settings</h4>
+            <ol>
+              <li>Copy this: <code>chrome://settings/content/notifications</code></li>
+              <li>Paste in address bar and press Enter</li>
+              <li>Under "Not allowed", find <strong>saantie.github.io</strong></li>
+              <li>Click <strong>⋮</strong> (3 dots) → <strong>Allow</strong></li>
+              <li>Come back here and reload</li>
+            </ol>
+          </div>
+
+          <!-- Desktop Method 3 -->
+          <div class="reset-method">
+            <h4>🗑️ Method 3: Clear & Retry</h4>
+            <ol>
+              <li>Press <strong>F12</strong> to open DevTools</li>
+              <li>Go to <strong>Application</strong> tab</li>
+              <li>Click <strong>Clear storage</strong> (left sidebar)</li>
+              <li>Click <strong>Clear site data</strong> button</li>
+              <li>Close DevTools and reload page</li>
+            </ol>
+          </div>
+
+          <div class="help-footer">
+            <p>💡 <strong>After completing any method:</strong></p>
+            <p>Reload this page and tap "I have reset permissions" below</p>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
   }
-}
 
+  /**
+   * Handle enable notifications button click
+   */
   async handleEnableNotifications() {
     const enableBtn = document.getElementById('onboardingEnableNotifications');
     const statusBox = document.getElementById('permissionStatusBox');
@@ -339,7 +421,7 @@ getResetInstructionsHTML() {
       const recheckPermission = Notification.permission;
       
       if (recheckPermission === 'denied') {
-        // Still denied - show instructions again
+        // Still denied - show alert
         alert(
           '⚠️ Notifications are still blocked.\n\n' +
           'Please follow the instructions above to reset permissions in your browser settings, ' +
@@ -350,23 +432,31 @@ getResetInstructionsHTML() {
     }
 
     try {
-      enableBtn.disabled = true;
-      enableBtn.textContent = '⏳ Requesting...';
+      if (enableBtn) {
+        enableBtn.disabled = true;
+        enableBtn.textContent = '⏳ Requesting...';
+      }
 
       const permission = await Notification.requestPermission();
 
       if (permission === 'granted') {
         console.log('✅ Notification permission granted');
         
-        statusBox.innerHTML = `
-          <div class="permission-success">
-            ✅ <strong>Success!</strong> Getting notification token...
-          </div>
-        `;
-        statusBox.className = 'permission-status-box granted';
+        if (statusBox) {
+          statusBox.innerHTML = `
+            <div class="permission-success">
+              ✅ <strong>Success!</strong> Getting notification token...
+            </div>
+          `;
+          statusBox.className = 'permission-status-box granted';
+        }
         
         // Get FCM token
-        await notificationManager.getToken();
+        try {
+          await notificationManager.getToken();
+        } catch (error) {
+          console.error('Error getting token:', error);
+        }
         
         // Go to success step
         setTimeout(() => {
@@ -374,43 +464,61 @@ getResetInstructionsHTML() {
         }, 1000);
         
       } else if (permission === 'denied') {
-        // User clicked "Block" or "Don't allow"
-        statusBox.innerHTML = this.getResetInstructionsHTML();
-        statusBox.className = 'permission-status-box blocked';
-        enableBtn.disabled = false;
-        enableBtn.textContent = '⚙️ I have reset permissions';
+        // User clicked "Block"
+        if (statusBox) {
+          statusBox.innerHTML = this.getResetInstructionsHTML();
+          statusBox.className = 'permission-status-box blocked';
+        }
+        if (enableBtn) {
+          enableBtn.disabled = false;
+          enableBtn.textContent = '⚙️ I have reset permissions';
+        }
         
       } else {
-        // User dismissed (clicked X)
-        statusBox.innerHTML = `
-          <div class="permission-dismissed">
-            ⚠️ <strong>Permission request dismissed</strong><br>
-            <small>Please try again or skip for now</small>
-          </div>
-        `;
-        statusBox.className = 'permission-status-box dismissed';
-        enableBtn.disabled = false;
-        enableBtn.textContent = '🔔 Try Again';
+        // User dismissed
+        if (statusBox) {
+          statusBox.innerHTML = `
+            <div class="permission-dismissed">
+              ⚠️ <strong>Permission request dismissed</strong><br>
+              <small>Please try again or skip for now</small>
+            </div>
+          `;
+          statusBox.className = 'permission-status-box dismissed';
+        }
+        if (enableBtn) {
+          enableBtn.disabled = false;
+          enableBtn.textContent = '🔔 Try Again';
+        }
       }
 
     } catch (error) {
       console.error('Error requesting notifications:', error);
-      statusBox.innerHTML = `
-        <div class="permission-error">
-          ❌ <strong>Error:</strong> ${error.message}
-        </div>
-      `;
-      statusBox.className = 'permission-status-box error';
-      enableBtn.disabled = false;
-      enableBtn.textContent = '🔔 Try Again';
+      if (statusBox) {
+        statusBox.innerHTML = `
+          <div class="permission-error">
+            ❌ <strong>Error:</strong> ${error.message}
+          </div>
+        `;
+        statusBox.className = 'permission-status-box error';
+      }
+      if (enableBtn) {
+        enableBtn.disabled = false;
+        enableBtn.textContent = '🔔 Try Again';
+      }
     }
   }
 
+  /**
+   * Skip onboarding
+   */
   skipOnboarding() {
     console.log('⏭️ Onboarding skipped');
     this.completeOnboarding();
   }
 
+  /**
+   * Complete onboarding
+   */
   completeOnboarding() {
     localStorage.setItem('onboarding_completed', 'true');
     this.hasCompletedOnboarding = true;
@@ -426,6 +534,77 @@ getResetInstructionsHTML() {
     console.log('✅ Onboarding completed');
   }
 
+  /**
+   * Open Chrome settings (helper function)
+   */
+  openChromeSettings() {
+    const settingsUrls = [
+      'chrome://settings/content/notifications',
+      'chrome://settings/content/siteDetails?site=' + encodeURIComponent(location.origin)
+    ];
+
+    try {
+      window.open(settingsUrls[0], '_blank');
+    } catch (error) {
+      alert(
+        '⚙️ Please open Chrome Settings manually:\n\n' +
+        '1. Tap ⋮ (3 dots)\n' +
+        '2. Settings\n' +
+        '3. Site settings\n' +
+        '4. Notifications'
+      );
+    }
+  }
+
+  /**
+   * Copy app URL to clipboard
+   */
+  async copyAppUrl() {
+    const url = location.origin + location.pathname;
+    
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        this.showCopySuccess();
+      } else {
+        // Fallback for older browsers
+        const input = document.createElement('input');
+        input.value = url;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        this.showCopySuccess();
+      }
+    } catch (error) {
+      alert('App URL:\n\n' + url + '\n\nPlease copy manually');
+    }
+  }
+
+  /**
+   * Show copy success feedback
+   */
+  showCopySuccess() {
+    const btn = document.getElementById('copyAppUrl');
+    if (btn) {
+      const originalText = btn.textContent;
+      const originalBg = btn.style.background;
+      
+      btn.textContent = '✅ Copied!';
+      btn.style.background = '#48bb78';
+      
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = originalBg;
+      }, 2000);
+    }
+  }
+
+  /**
+   * Reset onboarding (for testing)
+   */
   reset() {
     localStorage.removeItem('onboarding_completed');
     this.hasCompletedOnboarding = false;
@@ -433,4 +612,10 @@ getResetInstructionsHTML() {
   }
 }
 
+// ========== CREATE GLOBAL INSTANCE ==========
 const onboardingManager = new OnboardingManager();
+
+// ========== CONSOLE HELPER ==========
+console.log('💡 Onboarding Manager loaded');
+console.log('   - Type onboardingManager.reset() to reset onboarding');
+console.log('   - Type onboardingManager.start() to start onboarding manually');
